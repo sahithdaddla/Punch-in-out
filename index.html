@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Punch In/Out & Admin Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #2193b0, #6dd5ed);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .employee-form, .attendance-grid {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        input {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .punch-in {
+            background: #4CAF50;
+            color: white;
+        }
+        .punch-out {
+            background: #f44336;
+            color: white;
+        }
+        button:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+        .status-message {
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        .success {
+            background: #e8f5e9;
+            color: #4CAF50;
+        }
+        .error {
+            background: #ffebee;
+            color: #f44336;
+        }
+        .attendance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .attendance-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        .attendance-card:hover {
+            transform: translateY(-5px);
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            margin-top: 10px;
+        }
+        .status.in {
+            background: #e8f5e9;
+            color: #4CAF50;
+        }
+        .status.out {
+            background: #ffebee;
+            color: #f44336;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .tab.active {
+            background: #2193b0;
+            color: white;
+        }
+        .search input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Employee Attendance System</h1>
+        </div>
+
+        <!-- Employee Punch In/Out Section -->
+        <div class="employee-form">
+            <h2>Punch In/Out</h2>
+            <input type="text" id="employeeId" placeholder="Enter Employee ID">
+            <button class="punch-in" onclick="punchIn()">Punch In</button>
+            <button class="punch-out" onclick="punchOut()">Punch Out</button>
+            <div id="statusMessage" class="status-message"></div>
+        </div>
+
+        <!-- Admin Dashboard Section -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('today')">Today</div>
+            <div class="tab" onclick="switchTab('week')">This Week</div>
+            <div class="tab" onclick="switchTab('month')">This Month</div>
+        </div>
+        <div class="search">
+            <input type="text" id="searchInput" placeholder="Search employees..." onkeyup="searchEmployees()">
+        </div>
+        <div class="attendance-grid" id="attendanceGrid"></div>
+    </div>
+
+    <script>
+        // Employee Punch In/Out functions
+        function showMessage(message, type) {
+            const statusMessage = document.getElementById('statusMessage');
+            statusMessage.textContent = message;
+            statusMessage.className = type;
+            statusMessage.style.display = 'block';
+            setTimeout(() => {
+                statusMessage.style.display = 'none';
+            }, 3000);
+        }
+
+        function validateEmployeeId(id) {
+            const alphanumericRegex = /^[a-zA-Z0-9]{7}$/;
+            return alphanumericRegex.test(id);
+        }
+
+        function punchIn() {
+            const id = document.getElementById('employeeId').value;
+            if (!id) {
+                showMessage('Please enter Employee ID', 'error');
+                return;
+            }
+            if (!validateEmployeeId(id)) {
+                showMessage('Invalid Employee ID format', 'error');
+                return;
+            }
+            let attendanceData = JSON.parse(localStorage.getItem('attendanceData') || '[]');
+            const existingPunchIn = attendanceData.find(e => e.id === id && e.status === 'in');
+            if (existingPunchIn) {
+                showMessage('Employee already punched in. Please punch out first.', 'error');
+                return;
+            }
+            const attendance = { id, punchIn: new Date(), punchOut: null, status: 'in' };
+            attendanceData.push(attendance);
+            localStorage.setItem('attendanceData', JSON.stringify(attendanceData));
+            showMessage('Successfully punched in!', 'success');
+            document.getElementById('employeeId').value = '';
+            updateGrid();
+        }
+
+        function punchOut() {
+            const id = document.getElementById('employeeId').value;
+            if (!id) {
+                showMessage('Please enter Employee ID', 'error');
+                return;
+            }
+            if (!validateEmployeeId(id)) {
+                showMessage('Invalid Employee ID format', 'error');
+                return;
+            }
+            let attendanceData = JSON.parse(localStorage.getItem('attendanceData') || '[]');
+            const employee = attendanceData.find(e => e.id === id && e.status === 'in');
+            if (employee) {
+                employee.punchOut = new Date();
+                employee.status = 'out';
+                localStorage.setItem('attendanceData', JSON.stringify(attendanceData));
+                showMessage('Successfully punched out!', 'success');
+                document.getElementById('employeeId').value = '';
+                updateGrid();
+            } else {
+                showMessage('No active punch-in found for this employee', 'error');
+            }
+        }
+
+        // Admin Dashboard functions
+        let currentTab = 'today';
+
+        function formatTime(date) {
+            return `${date.getHours()}:${date.getMinutes() < 10 ? '0' + date.getMinutes() : date.getMinutes()}`;
+        }
+
+        function createAttendanceCard(entry) {
+            const card = document.createElement('div');
+            card.className = 'attendance-card';
+            const duration = entry.punchOut ?
+                ((new Date(entry.punchOut) - new Date(entry.punchIn)) / (1000 * 60 * 60)).toFixed(2) + ' hours' :
+                'Active';
+            const formattedDate = new Date(entry.punchIn).toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+            card.innerHTML = `
+                <p>ID: ${entry.id}</p>
+                <p>Date: ${formattedDate}</p>
+                <p>Punch In: ${formatTime(new Date(entry.punchIn))}</p>
+                <p>Punch Out: ${entry.punchOut ? formatTime(new Date(entry.punchOut)) : 'Not punched out'}</p>
+                <p>Duration: ${duration}</p>
+                <span class="status ${entry.status}">${entry.status === 'in' ? 'Punched In' : 'Punched Out'}</span>
+            `;
+            return card;
+        }
+
+        function updateGrid() {
+            const attendanceData = JSON.parse(localStorage.getItem('attendanceData') || '[]');
+            const filteredData = filterDataByTab(attendanceData);
+            const grid = document.getElementById('attendanceGrid');
+            grid.innerHTML = '';
+            filteredData.forEach(entry => {
+                const card = createAttendanceCard(entry);
+                grid.appendChild(card);
+            });
+        }
+
+        function filterDataByTab(data) {
+            const now = new Date();
+            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+            return data.filter(entry => {
+                const entryDate = new Date(entry.punchIn);
+                switch (currentTab) {
+                    case 'today':
+                        return entryDate >= startOfDay;
+                    case 'week':
+                        return entryDate >= startOfWeek;
+                    case 'month':
+                        return entryDate >= startOfMonth;
+                    default:
+                        return true;
+                }
+            });
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
+            updateGrid();
+        }
+
+        // Function to search employees
+        function searchEmployees() {
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+            const attendanceData = JSON.parse(localStorage.getItem('attendanceData') || '[]');
+            const filteredData = attendanceData.filter(entry => entry.id.toLowerCase().includes(searchQuery));
+            const grid = document.getElementById('attendanceGrid');
+            grid.innerHTML = '';
+            filteredData.forEach(entry => {
+                const card = createAttendanceCard(entry);
+                grid.appendChild(card);
+            });
+        }
+
+        // Initialize the grid on load
+        updateGrid();
+    </script>
+</body>
+</html>
+
